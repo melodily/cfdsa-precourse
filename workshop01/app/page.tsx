@@ -1,4 +1,6 @@
+'use client'
 import Image from "next/image";
+import { useEffect, useState } from 'react';
 
 export default function Home() {
     const nuggetsOfWisdom = [
@@ -13,7 +15,11 @@ export default function Home() {
         return Math.floor(Math.random() * (max - min) + min);
     }
 
-    const nuggetOfWisdom = nuggetsOfWisdom[randomInt(0, nuggetsOfWisdom.length)];
+    const [nuggetOfWisdom, setNuggetOfWisdom] = useState("");
+
+    useEffect(() => {
+        setNuggetOfWisdom(nuggetsOfWisdom[randomInt(0, nuggetsOfWisdom.length)]);
+    }, []);
 
     return (
         <div
