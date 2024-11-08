@@ -11,7 +11,7 @@ export default function Home() {
         "It is pitch dark. You are likely to be eaten by a grue.",
     ]
 
-    function randomInt(min: number, max: number) { // max is inclusive
+    function randomInt(min: number, max: number) { // max is exclusive
         return Math.floor(Math.random() * (max - min) + min);
     }
 
