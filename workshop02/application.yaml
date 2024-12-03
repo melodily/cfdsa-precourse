@@ -1,0 +1,58 @@
+# deployment and service
+# deployment, service
+# dov-deploy.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bggapp-deploy
+  namespace: bggns
+  labels:
+    app: bggapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: bggapp
+  template:
+    metadata:
+      name: bggapp-pod
+      namespace: bggns
+      labels:
+        app: bggapp
+    spec:
+      containers:
+      - name: bggapp-container
+        image: stackupiss/bgg-backend:v1
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /healtz
+            port: 3000
+          periodSeconds: 30
+        envFrom:
+        - configMapRef:
+            name: bgg-cm
+        - secretRef:
+            name: bgg-secret
+        ports:
+          - containerPort: 3000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bggapp-svc
+  namespace: bggns
+  labels:
+    app: bggapp
+spec:
+  type: ClusterIP # Only expose within
+#  type: NodePort # to expose the port
+#  type: LoadBalancer # to expose the port and provision a LB
+  selector:
+    app: bggapp
+  ports:
+    - name: bggapp
+      port: 3000
+      targetPort: 3000
