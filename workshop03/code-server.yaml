@@ -1,0 +1,89 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cs-pvc
+  namespace: cs-ns
+  labels:
+    app: cs
+spec:
+  storageClassName: do-block-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cs-deploy
+  namespace: cs-ns
+  labels:
+    app: cs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cs
+      type: pod
+  strategy:
+    type: RollingUpdate
+    # usually not like that, but cos of the volume issue,
+    # this sets it to undeploy first and redeploy so that
+    # it can attach to the volume
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      name: cs-pod
+      namespace: cs-ns
+      labels:
+        app: cs
+        type: pod
+    spec:
+      volumes:
+        - name: cs-pvc-vol
+          persistentVolumeClaim:
+            claimName: cs-pvc
+      containers:
+        - name: cs-container
+          image: linuxserver/code-server:amd64-4.95.3
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: cs-cm
+            - secretRef:
+                name: cs-secret
+          ports:
+            - containerPort: 8443
+          resources:
+            requests:
+              memory: 512M
+              cpu: 200m
+            limits:
+              memory: 512M
+              cpu: 200m
+          volumeMounts:
+            - name: cs-pvc-vol
+              mountPath: /config/workspace
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cs-svc
+  namespace: cs-ns
+  labels:
+    app: cs
+spec:
+  type: ClusterIP
+  selector:
+    app: cs
+    type: pod
+  ports:
+    - name: cs-port
+      port: 8443
+      targetPort: 8443
+

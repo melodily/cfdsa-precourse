@@ -1,0 +1,23 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cs-ing
+  namespace: cs-ns
+  labels:
+    app: cs
+spec:
+  # get from `k get ingressclass`.
+  # We got this from helm installing nginx-ingress.
+  ingressClassName: nginx
+  rules: # how to route the traffic
+    - host: code-146.190.4.231.nip.io # faked hostname
+      http:
+        paths:
+          - path: / # can be any path like /v1 etc
+            pathType: Prefix
+            backend:
+              service:
+                name: cs-svc
+                port:
+                  number: 8443 # port of the service to route to
