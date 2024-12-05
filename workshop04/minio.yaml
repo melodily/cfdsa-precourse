@@ -1,0 +1,135 @@
+--- # headless service, purely for ports to find each other
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-hsvc
+  namespace: minio-ns
+  labels:
+    app: minio
+spec:
+  clusterIP: None
+  selector:
+    app: minio
+    name: minio-po
+  ports:
+  - name: data
+    port: 9000
+    targetPort: 9000
+  - name: console
+    port: 9090
+    targetPort: 9090
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio-sts
+  namespace: minio-ns
+  labels:
+    app: minio
+spec:
+  serviceName: minio-hsvc
+  replicas: 4
+  selector:
+    matchLabels: # matching the stateful service
+      app: minio
+      name: minio-po
+  volumeClaimTemplates:
+  - metadata:
+      name: data-vol
+    spec:
+      storageClassName: do-block-storage
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+  template:
+    metadata:
+      name: minio-po
+      labels:
+        app: minio
+        name: minio-po
+    spec:
+      securityContext: # applied to all the containers inside
+        fsGroup: 1001 # file system group
+      containers:
+      - name: minio-container
+        image: bitnami/minio:2024.11.7
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: minio-cm
+        - secretRef:
+            name: minio-secret
+        ports:
+        - containerPort: 9000
+        - containerPort: 9090
+        volumeMounts:
+        - name: data-vol
+          mountPath: /data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-svc
+  namespace: minio-ns
+  labels:
+    app: minio
+spec:
+  type: ClusterIP
+  selector:
+    app: minio
+    name: minio-po
+  ports:
+  - name: data
+    port: 9000
+    targetPort: 9000
+  - name: console
+    port: 9090
+    targetPort: 9090
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-data-ing
+  namespace: minio-ns
+  labels:
+    app: minio
+  annotations:
+    # specially rate-limiting api requests
+    nginx.ingress.kubernetes.io/limit-rps: "5"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: data-146.190.4.231.nip.io
+    http:
+      paths:
+      - path: / # can be any path like /v1 etc
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-svc
+            port:
+              name: data
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-console-ing
+  namespace: minio-ns
+  labels:
+    app: minio
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: console-146.190.4.231.nip.io # faked hostname
+    http:
+      paths:
+      - path: / # can be any path like /v1 etc
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-svc
+            port:
+              name: console
